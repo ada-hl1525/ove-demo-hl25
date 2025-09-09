@@ -1,0 +1,8 @@
+from sqlalchemy import Column, String
+
+from app.db.session import Base
+
+
+class APIKey(Base):
+    __tablename__ = "api_keys"
+    id = Column(String, primary_key=True)

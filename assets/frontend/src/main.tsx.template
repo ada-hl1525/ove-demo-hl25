@@ -1,0 +1,80 @@
+import { QueryClientProvider } from "@tanstack/react-query";
+import {
+  createRootRoute,
+  createRouter,
+  Outlet,
+  RouterProvider,
+} from "@tanstack/react-router";
+import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
+import { StrictMode } from "react";
+import ReactDOM from "react-dom/client";
+import z from "zod";
+
+import TanStackQueryLayout from "@/components/query-client-devtools.tsx";
+import { logger } from "@/lib/logger.ts";
+import { getContext, queryClient } from "@/lib/query-client.ts";
+import { useStore } from "@/lib/store.ts";
+import reportWebVitals from "@/reportWebVitals.ts";
+import IndexRoute from "@/routes/index.tsx";
+import "@/styles.css";
+import { env } from "@/env.ts";
+
+const rootRoute = createRootRoute({
+  beforeLoad: async () => {
+    await fetch(`${env.VITE_BACKEND}/auth/validate`);
+  },
+  loader: () => useStore.getState().loadData(),
+  validateSearch: z.strictObject({
+    displayMode: z
+      .union([z.literal("controller"), z.literal("view")])
+      .optional(),
+    observatory: z.string().optional(),
+    row: z.number().optional(),
+    column: z.number().optional(),
+  }),
+  component: () => (
+    <>
+      <Outlet />
+      <TanStackRouterDevtools />
+
+      <TanStackQueryLayout />
+    </>
+  ),
+});
+
+const routeTree = rootRoute.addChildren([IndexRoute(rootRoute)]);
+
+const router = createRouter({
+  routeTree,
+  context: {
+    ...getContext(),
+  },
+  defaultPreload: "intent",
+  scrollRestoration: true,
+  defaultStructuralSharing: true,
+  defaultPreloadStaleTime: 0,
+  basepath: import.meta.env.BASE_URL,
+});
+
+declare module "@tanstack/react-router" {
+  interface Register {
+    router: typeof router;
+  }
+}
+
+const rootElement = document.getElementById("app");
+if (rootElement && !rootElement.innerHTML) {
+  const root = ReactDOM.createRoot(rootElement);
+  root.render(
+    <StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+    </StrictMode>
+  );
+}
+
+// If you want to start measuring performance in your app, pass a function
+// to log results (for example: reportWebVitals(console.log))
+// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
+reportWebVitals(logger.trace);

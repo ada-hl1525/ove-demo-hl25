@@ -1,0 +1,25 @@
+services:
+  {{formattedProjectName}}:
+    image: "do-registry.dsi.ic.ac.uk/demos/{{formattedProjectName}}:latest"
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: {{formattedProjectName}}
+    platform: linux/amd64
+    restart: unless-stopped
+    volumes:
+      - ./backend/.env.production:/.env:ro
+      - ./backend/data:/data
+    ports:
+      - "80:80"
+  redis:
+    image: redis:7.4.2-alpine
+    container_name: redis
+    restart: unless-stopped
+    volumes:
+      - ./backend/data/cache:/data
+      - ./backend/config/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    ports:
+      - "6379:6379"
+    command: redis-server /usr/local/etc/redis/redis.conf --requirepass ${REDIS_PASSWORD}
+    env_file: .env

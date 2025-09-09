@@ -1,0 +1,36 @@
+import { create } from "zustand";
+import { combine } from "zustand/middleware";
+
+import type { State } from "@/lib/types";
+import { env } from "@/env.ts";
+import { createSocketClient } from "@/api/sockets-v1.ts";
+import { logger } from "@/lib/logger.ts";
+
+export const socket = createSocketClient(`${env.VITE_SOCKET_SERVER}/v1`, {
+  path: env.VITE_SOCKET_PATH,
+  withCredentials: true,
+});
+
+const initialState: State = {
+  data: "hello world",
+};
+
+export const useStore = create(
+  combine(initialState, (setState, _getState) => {
+    socket.onConnect(() => logger.info("Connected"));
+    socket.onDisconnect(() => logger.info("Disconnected"));
+    socket.onSetData((data: string) => setState({ data }));
+    socket.onJoined(({ room }) => logger.info("Joined room", room));
+
+    return {
+      loadData: async () => {
+        const state = await socket.getState() as unknown as typeof initialState;
+
+        setState(state);
+      },
+      setData: (data: string) => {
+        socket.emitSetData(data);
+      },
+    };
+  }),
+);

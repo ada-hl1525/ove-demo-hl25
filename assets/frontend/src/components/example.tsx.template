@@ -1,0 +1,9 @@
+import { useIsView } from "@/hooks/use-is-view";
+
+const Example = () => {
+  const isView = useIsView();
+
+  return <div>Is view: {isView}</div>;
+};
+
+export default Example;

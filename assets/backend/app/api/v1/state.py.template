@@ -1,0 +1,12 @@
+from dataclasses import dataclass, asdict
+
+
+@dataclass
+class State:
+    data: str = "hello world"
+
+    def to_dict(self):
+        return asdict(self)
+
+
+state = State()

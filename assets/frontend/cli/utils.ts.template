@@ -1,0 +1,27 @@
+import fs from "fs";
+import path from "path";
+import prettier from "prettier";
+
+const __dirname = import.meta.dirname;
+
+export const OUT_DIR = path.resolve(__dirname, "..", "src", "api");
+export const SCHEMA_DIR = path.resolve(__dirname, "..", "..", "backend", "schemas");
+const PRETTIER_CONFIG = path.resolve(__dirname, "..", ".prettierrc");
+
+export const toCamel = (str: string) =>
+  str.replace(/[-_](\w)/g, (_, c) => c.toUpperCase());
+
+export const toPascal = (str: string) => {
+  const c = toCamel(str);
+  return c.charAt(0).toUpperCase() + c.slice(1);
+};
+
+export const writeToFile = async (out: string[], filename: string) => {
+  fs.mkdirSync(path.dirname(filename), { recursive: true });
+  const config = JSON.parse(fs.readFileSync(PRETTIER_CONFIG, "utf8"));
+  const pretty = await prettier.format(out.join("\n"), {
+    ...config,
+    parser: "typescript",
+  });
+  fs.writeFileSync(filename, pretty, "utf8");
+};
