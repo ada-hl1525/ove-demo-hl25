@@ -13,7 +13,8 @@
     "clean": "rm -rf dist",
     "format": "prettier",
     "link": "pnpm run build && pnpm link --global",
-    "lint": "eslint"
+    "lint": "eslint",
+    "prepublishOnly": "pnpm run build"
   },
   "devDependencies": {
     "@eslint/js": "^9.35.0",
