@@ -5,7 +5,7 @@
     "email": "bc2918@ic.ac.uk",
     "url": "https://github.com/bcd00"
   },
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "",
   "main": "index.js",
   "type": "module",
@@ -40,7 +40,6 @@
     "typescript-eslint": "^8.43.0"
   },
   "keywords": [],
-  "author": "",
   "license": "ISC",
   "packageManager": "pnpm@10.11.0",
   "dependencies": {
