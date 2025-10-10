@@ -21,7 +21,7 @@ RUN apt update \
       zlib1g-dev \
       libssl-dev \
       libffi-dev \
-      libsqlite3-dev \
+      libpq-dev \
       patchelf \
     && rm -rf /var/lib/apt/lists/*
 
@@ -48,22 +48,24 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # Place executables in the environment at the front of the path
 ENV PATH="/app/backend/.venv/bin:$PATH"
 
-RUN uv run pyinstaller --onefile --name={{formattedProjectName}} main.py
+RUN uv run pyinstaller --clean {{formattedProjectName}}.spec
 
 FROM gcr.io/distroless/cc:debug AS runtime
+LABEL org.opencontainers.image.authors="{{{dockerAuthor}}}"
 
 USER nonroot:nonroot
-
-COPY --from=backend \
-     /usr/lib/x86_64-linux-gnu/libsqlite3.so.* \
-     /usr/lib/x86_64-linux-gnu/
 
 COPY --from=backend \
      /lib/x86_64-linux-gnu/libz.so.* \
      /lib/x86_64-linux-gnu/
 
+COPY --from=backend \
+     /usr/lib/x86_64-linux-gnu/libpq.so.* \
+     /usr/lib/x86_64-linux-gnu/
+
 COPY --from=backend /app/backend/dist/{{formattedProjectName}} .
 COPY --from=backend /app/backend/public/. ./public/.
+COPY --from=backend /app/backend/templates/. ./templates/.
 COPY --from=backend /app/backend/schemas/. ./schemas/.
 COPY --from=frontend /app/frontend/dist/. ./public/.
 

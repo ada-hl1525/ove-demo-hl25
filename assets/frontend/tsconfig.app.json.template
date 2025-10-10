@@ -23,5 +23,5 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "eslint.config.js"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "eslint.config.ts"]
 }

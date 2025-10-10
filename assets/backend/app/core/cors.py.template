@@ -1,14 +1,14 @@
 from fastapi.middleware.cors import CORSMiddleware
 
-from .logger import logger
-from ..app import app
-from .config import get_settings
+from app.app import app
+from app.core.logger import logger
+from app.core.config import get_settings
 
 settings = get_settings()
 
 origins = [
     settings.frontend_origin,
-    settings.websocket_origin
+    settings.websocket_origin,
 ]
 
 app.add_middleware(

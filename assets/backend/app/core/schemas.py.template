@@ -1,11 +1,11 @@
 from typing import Optional, Type, Container
 
-from pydantic import BaseModel, create_model, ConfigDict
 from sqlalchemy import inspect
 from sqlalchemy.orm import ColumnProperty
+from pydantic import BaseModel, create_model, ConfigDict
 
-from app.core.logger import logger
 from app.db import models
+from app.core.logger import logger
 
 
 class Status(BaseModel):
@@ -14,6 +14,10 @@ class Status(BaseModel):
 
 class SocketJoinPayload(BaseModel):
     room: str
+
+
+class TickPayload(BaseModel):
+    timestamp: str
 
 
 class OrmConfig(ConfigDict):

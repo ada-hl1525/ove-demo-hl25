@@ -14,7 +14,7 @@ export default defineConfig({
   server: {
     proxy: {
       "/env.js": {
-        target: "http://localhost:8000",
+        target: "http://localhost:8000/{{formattedProjectName}}",
         changeOrigin: true,
         rewrite: (path) => path,
       },

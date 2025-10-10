@@ -741,7 +741,6 @@ MANIFEST
 #  Usually these files are written by a python script from a template
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
-*.spec
 
 # Installer logs
 pip-log.txt
@@ -874,3 +873,9 @@ backend/.env.production
 backend/data/*
 !backend/data/.gitkeep
 frontend/.env.docker
+backend/models/*
+!backend/models/.gitkeep
+backend/certs/*
+!backend/certs/.gitkeep
+backend/*.spec
+!backend/{{formattedProjectName}}.spec

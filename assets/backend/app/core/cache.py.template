@@ -8,9 +8,8 @@ from fastapi_cache.backends.redis import RedisBackend
 from fastapi.encoders import jsonable_encoder
 from redis import asyncio as aioredis
 
-from . import downgrade_ssl
-from .config import get_settings
-from .logger import logger
+from app.core.config import get_settings
+from app.core.logger import logger
 
 settings = get_settings()
 
@@ -26,8 +25,6 @@ class CustomJsonCoder(Coder):
 
 
 async def configure_cache():
-    if settings.downgrade_ssl:
-        downgrade_ssl()
     redis = await aioredis.Redis(
         host=settings.cache_host,
         port=settings.cache_port,
@@ -36,7 +33,7 @@ async def configure_cache():
         ssl_certfile=settings.cache_certfile,
         ssl_keyfile=settings.cache_keyfile,
         ssl_cert_reqs="required",
-        ssl_ca_certs=settings.cache_ca_certs
+        ssl_ca_certs=settings.ca_bundle_path
     )
     await redis.ping()
     FastAPICache.init(RedisBackend(redis), prefix=settings.cache_prefix)

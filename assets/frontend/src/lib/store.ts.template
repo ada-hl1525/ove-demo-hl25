@@ -1,36 +1,44 @@
 import { create } from "zustand";
 import { combine } from "zustand/middleware";
 
-import type { State } from "@/lib/types";
-import { env } from "@/env.ts";
-import { createSocketClient } from "@/api/sockets-v1.ts";
 import { logger } from "@/lib/logger.ts";
+import { socket } from "@/lib/sockets.ts";
 
-export const socket = createSocketClient(`${env.VITE_SOCKET_SERVER}/v1`, {
-  path: env.VITE_SOCKET_PATH,
-  withCredentials: true,
-});
+export type Status = "stopped" | "running";
+
+type State = {
+  status: Status;
+  timestamp: Date | null;
+};
+
+type ParseState = State & { timestamp: string };
 
 const initialState: State = {
-  data: "hello world",
+  status: "stopped",
+  timestamp: new Date(Date.parse("2022-11-01T00:00:00.000Z")),
 };
 
 export const useStore = create(
   combine(initialState, (setState, _getState) => {
     socket.onConnect(() => logger.info("Connected"));
     socket.onDisconnect(() => logger.info("Disconnected"));
-    socket.onSetData((data: string) => setState({ data }));
-    socket.onJoined(({ room }) => logger.info("Joined room", room));
+    socket.onTick((payload) => setState({ timestamp: new Date(Date.parse(payload.timestamp)) }));
+    socket.onStop(() => setState({ status: "stopped" }));
+    socket.onStart(() => setState({ status: "running" }));
+    socket.onReset(async () => {
+      const state = await socket.getState() as unknown as ParseState;
+      setState({...state, timestamp: new Date(Date.parse(state.timestamp))});
+    });
 
     return {
-      loadData: async () => {
-        const state = await socket.getState() as unknown as typeof initialState;
+      loadState: async () => {
+        const state = await socket.getState() as unknown as ParseState;
 
-        setState(state);
+        setState({...state, timestamp: new Date(Date.parse(state.timestamp))});
       },
-      setData: (data: string) => {
-        socket.emitSetData(data);
-      },
+      start: () => socket.emitStart(),
+      stop: () => socket.emitStop(),
+      reset: () => socket.emitReset(),
     };
   }),
 );

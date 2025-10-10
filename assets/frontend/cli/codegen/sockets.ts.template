@@ -6,10 +6,24 @@
  * 2) Emits:
  *    - frontend/src/api/api.ts
  */
-import { type ChannelInterface, type OperationInterface, Parser } from "@asyncapi/parser";
+import {
+  type ChannelInterface,
+  type OperationInterface,
+  Parser,
+} from "@asyncapi/parser";
 import fs from "fs";
 import path from "path";
-import { OUT_DIR, SCHEMA_DIR, toCamel, toPascal, writeToFile } from "../utils.ts";
+import {
+  OUT_DIR,
+  SCHEMA_DIR,
+  postProcess,
+  type Processor,
+  toCamel,
+  toPascal,
+  writeToFile,
+} from "../utils.ts";
+
+const processors: Processor[] = [];
 
 const getMessageTypeForPayload = (payload: Record<string, string>) => {
   if (payload?.type === "object") {
@@ -41,7 +55,11 @@ const getMessageTypeForPayload = (payload: Record<string, string>) => {
 
 const getMessageTypeForOperation = (operation: OperationInterface) => {
   const payload = operation.messages()?.pop()?.json()?.payload;
-  if (payload !== undefined && "oneOf" in payload && Array.isArray(payload.oneOf)) {
+  if (
+    payload !== undefined &&
+    "oneOf" in payload &&
+    Array.isArray(payload.oneOf)
+  ) {
     const res: { schema: string; type: string }[] = payload.oneOf
       .map((option: Record<string, string>) => getMessageTypeForPayload(option))
       .filter((r: { schema: string; type: string }) => r !== undefined);
@@ -74,12 +92,12 @@ const getBase = (namespace: string) =>
       this.socket.disconnect();
     }
 
+    public isConnected(): boolean {
+      return this.socket.connected;
+    }
+
     public onConnect(handler: () => void): void {
-      this.socket.on("connect", () => {
-        const room = new URLSearchParams(window.location.search).get("observatory") ?? "DEFAULT_ROOM";
-        this.emitJoin({ room });
-        handler();
-      });
+      this.socket.on("connect", handler);
     }
 
     public onDisconnect(handler: () => void): void {
@@ -134,7 +152,7 @@ const buildListener = (
     public on${toPascal(event)}(
       handler: (${param}) => void
     ): void {
-      this.socket.on("${event}", (raw: unknown) => {
+      this.socket.on("${event}", (${response !== "" ? "raw: unknown" : ""}) => {
         try {
           handler(${response});
         } catch(e) {
@@ -227,7 +245,8 @@ const generateClient = async (
     path.join(
       OUT_DIR,
       `sockets${namespace !== undefined ? `-${namespace}` : ""}.ts`
-    )
+    ),
+    (data) => postProcess(data, processors),
   );
   console.log(
     `✨  Generated sockets${namespace !== undefined ? `-${namespace}` : ""}.ts in`,

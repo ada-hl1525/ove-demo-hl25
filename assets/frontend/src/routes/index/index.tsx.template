@@ -2,8 +2,7 @@ import type { RootRoute } from "@tanstack/react-router";
 import { createRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
 
-import Example from "@/components/example";
-import { socket, useStore } from "@/lib/store";
+import { socket } from "@/lib/sockets";
 
 export const IndexPage = () => {
   useEffect(() => {
@@ -13,13 +12,13 @@ export const IndexPage = () => {
 
   return (
     <main className="h-screen w-screen overflow-hidden bg-[#080929]">
-      <Example />
+      HELLO WORLD!
     </main>
   );
 };
 
-const IndexRoute = <A, B, C, D, E extends Record<string, never>>(
-  parentRoute: RootRoute<A, B, C, D, E, () => Promise<void>>
+const IndexRoute = <A, B, C, D, E, F extends Record<string, never>, G, H>(
+  parentRoute: RootRoute<A, B, C, D, E, F, G, H>
 ) =>
   createRoute({
     path: "/",

@@ -16,6 +16,8 @@ type ProjectConfig = {
   projectDir: string;
   metricsPassword: string;
   legacyAuthKey: string;
+  db: string;
+  dbPythonLib: string;
 };
 
 const getProjectConfig = async (): Promise<ProjectConfig> => {
@@ -47,6 +49,13 @@ const getProjectConfig = async (): Promise<ProjectConfig> => {
     message: "Metrics Password",
   });
 
+  const { db } = await enquirer.prompt<{ db: string }>({
+    type: "select",
+    name: "db",
+    message: "Database",
+    choices: ["sqlite", "postgres"]
+  });
+
   const formattedProjectName = projectName
     .toLowerCase()
     .replaceAll(" ", "-")
@@ -59,6 +68,8 @@ const getProjectConfig = async (): Promise<ProjectConfig> => {
     legacyAuthKey,
     formattedProjectName,
     projectDir: path.join(cwd, formattedProjectName),
+    db,
+    dbPythonLib: db === "sqlite" ? "aiosqlite" : "asyncpg",
   };
 };
 
@@ -77,7 +88,7 @@ const initBackend = async (config: ProjectConfig) => {
   })`uv init --name ${config.formattedProjectName} --description ${`OVE demo for the ${config.projectName} project.`}`;
   await $({
     cwd: path.join(config.projectDir, "backend"),
-  })`uv add aiosqlite alembic ${"fastapi-cache2[redis]"} ${"fastapi[standard]"} greenlet numpy pandas prometheus-fastapi-instrumentator pydantic-settings pyinstaller python-socketio redis slowapi sqlalchemy`;
+  })`uv add ${config.dbPythonLib} alembic ${"fastapi-cache2[redis]"} ${"fastapi[standard]"} greenlet numpy pandas prometheus-fastapi-instrumentator pydantic-settings pyinstaller python-socketio redis slowapi sqlalchemy`;
 };
 
 const initFrontend = async (config: ProjectConfig) => {
@@ -132,7 +143,7 @@ const initFrontend = async (config: ProjectConfig) => {
   })`pnpm add -D @asyncapi/parser @eslint/js @tailwindcss/vite @testing-library/dom @testing-library/react @types/node @types/react @types/react-dom @vitejs/plugin-react-swc eslint eslint-config-prettier eslint-plugin-prettier eslint-plugin-react-hooks eslint-plugin-react-refresh globals jsdom json-schema-to-zod openapi3-ts prettier prettier-plugin-organize-imports prettier-plugin-tailwindcss tsx typescript typescript-eslint vite vitest`;
   await $({
     cwd: path.join(config.projectDir, "frontend"),
-  })`pnpm add @t3-oss/env-core @tanstack/react-query @tanstack/react-query-devtools @tanstack/react-router @tanstack/react-router-devtools axios chalk class-variance-authority clsx date-fns lucide-react react react-dom socket.io-client tailwind-merge tailwindcss tailwindcss-animate web-vitals zod zustand`;
+  })`pnpm add @t3-oss/env-core @tanstack/react-query @tanstack/react-query-devtools @tanstack/react-router @tanstack/react-router-devtools axios chalk class-variance-authority clsx date-fns lucide-react react react-dom socket.io-client tailwind-merge tailwindcss tw-animate-css web-vitals zod zustand`;
 };
 
 const templates = [
@@ -140,16 +151,6 @@ const templates = [
     name: ".gitignore",
     source: "assets/.gitignore.template",
     target: ".gitignore",
-  },
-  {
-    name: "Dockerfile",
-    source: "assets/Dockerfile.template",
-    target: "Dockerfile",
-  },
-  {
-    name: "docker-compose.yml",
-    source: "assets/docker-compose.yml.template",
-    target: "docker-compose.yml",
   },
   {
     name: ".dockerignore",
@@ -167,9 +168,9 @@ const templates = [
     target: "backend/main.py",
   },
   {
-    name: "backend/schemas.py",
-    source: "assets/backend/schemas.py.template",
-    target: "backend/schemas.py",
+    name: "backend/scripts/schemas.py",
+    source: "assets/backend/scripts/schemas.py.template",
+    target: "backend/scripts/schemas.py",
   },
   {
     name: "backend/schemas/.gitkeep",
@@ -212,29 +213,49 @@ const templates = [
     target: "backend/data/.gitkeep",
   },
   {
+    name: "backend/models/.gitkeep",
+    source: "assets/backend/models/.gitkeep.template",
+    target: "backend/models/.gitkeep",
+  },
+  {
+    name: "backend/templates/.gitkeep",
+    source: "assets/backend/templates/.gitkeep.template",
+    target: "backend/templates/.gitkeep",
+  },
+  {
     name: "backend/config/redis.conf",
     source: "assets/backend/config/redis.conf.template",
     target: "backend/config/redis.conf",
   },
   {
-    name: "backend/alembic/script.py.mako",
-    source: "assets/backend/alembic/script.py.mako.template",
-    target: "backend/alembic/script.py.mako",
+    name: "backend/config/pyinstaller/stubs/.gitkeep",
+    source: "assets/backend/config/pyinstaller/stubs/.gitkeep.template",
+    target: "backend/config/pyinstaller/stubs/.gitkeep",
   },
   {
-    name: "backend/alembic/env.py",
-    source: "assets/backend/alembic/env.py.template",
-    target: "backend/alembic/env.py",
+    name: "backend/config/pyinstaller/hooks/.gitkeep",
+    source: "assets/backend/config/pyinstaller/hooks/.gitkeep.template",
+    target: "backend/config/pyinstaller/hooks/.gitkeep",
   },
   {
-    name: "backend/alembic/__init__.py",
-    source: "assets/backend/alembic/__init__.py.template",
-    target: "backend/alembic/__init__.py",
+    name: "backend/migrations/script.py.mako",
+    source: "assets/backend/migrations/script.py.mako.template",
+    target: "backend/migrations/script.py.mako",
   },
   {
-    name: "backend/alembic/versions/.gitkeep",
-    source: "assets/backend/alembic/versions/.gitkeep.template",
-    target: "backend/alembic/versions/.gitkeep",
+    name: "backend/migrations/env.py",
+    source: "assets/backend/migrations/env.py.template",
+    target: "backend/migrations/env.py",
+  },
+  {
+    name: "backend/migrations/__init__.py",
+    source: "assets/backend/migrations/__init__.py.template",
+    target: "backend/migrations/__init__.py",
+  },
+  {
+    name: "backend/migrations/versions/.gitkeep",
+    source: "assets/backend/migrations/versions/.gitkeep.template",
+    target: "backend/migrations/versions/.gitkeep",
   },
   {
     name: "backend/app/__init__.py",
@@ -320,6 +341,11 @@ const templates = [
     name: "backend/app/core/state.py",
     source: "assets/backend/app/core/state.py.template",
     target: "backend/app/core/state.py",
+  },
+  {
+    name: "backend/app/core/templates.py",
+    source: "assets/backend/app/core/templates.py.template",
+    target: "backend/app/core/templates.py",
   },
   {
     name: "backend/app/api/__init__.py",
@@ -432,6 +458,11 @@ const templates = [
     target: "frontend/public/robots.txt",
   },
   {
+    name: "frontend/public/manifest.json",
+    source: "assets/frontend/public/manifest.json.template",
+    target: "frontend/public/manifest.json",
+  },
+  {
     name: "frontend/src/styles.css",
     source: "assets/frontend/src/styles.css.template",
     target: "frontend/src/styles.css",
@@ -452,19 +483,29 @@ const templates = [
     target: "frontend/src/env.ts",
   },
   {
-    name: "frontend/src/routes/index.tsx",
-    source: "assets/frontend/src/routes/index.tsx.template",
-    target: "frontend/src/routes/index.tsx",
+    name: "frontend/src/routes/index/index.tsx",
+    source: "assets/frontend/src/routes/index/index.tsx.template",
+    target: "frontend/src/routes/index/index.tsx",
   },
   {
-    name: "frontend/src/routes/index.test.tsx",
-    source: "assets/frontend/src/routes/index.test.tsx.template",
-    target: "frontend/src/routes/index.test.tsx",
+    name: "frontend/src/routes/index/index.test.tsx",
+    source: "assets/frontend/src/routes/index/index.test.tsx.template",
+    target: "frontend/src/routes/index/index.test.tsx",
   },
   {
     name: "frontend/src/lib/logger.ts",
     source: "assets/frontend/src/lib/logger.ts.template",
     target: "frontend/src/lib/logger.ts",
+  },
+  {
+    name: "frontend/src/lib/debug.ts",
+    source: "assets/frontend/src/lib/debug.ts.template",
+    target: "frontend/src/lib/debug.ts",
+  },
+  {
+    name: "frontend/src/lib/sockets.ts",
+    source: "assets/frontend/src/lib/sockets.ts.template",
+    target: "frontend/src/lib/sockets.ts",
   },
   {
     name: "frontend/src/lib/query-client.ts",
@@ -502,37 +543,68 @@ const templates = [
     target: "frontend/src/hooks/use-theme.ts",
   },
   {
-    name: "frontend/src/components/example.tsx",
-    source: "assets/frontend/src/components/example.tsx.template",
-    target: "frontend/src/components/example.tsx",
+    name: "frontend/src/components/error.tsx",
+    source: "assets/frontend/src/components/error.tsx.template",
+    target: "frontend/src/components/error.tsx",
+  },
+  {
+    name: "frontend/src/components/debug.tsx",
+    source: "assets/frontend/src/components/debug.tsx.template",
+    target: "frontend/src/components/debug.tsx",
+  },
+  {
+    name: "frontend/src/components/inline-edit.tsx",
+    source: "assets/frontend/src/components/inline-edit.tsx.template",
+    target: "frontend/src/components/inline-edit.tsx",
   },
   {
     name: "frontend/src/components/query-client-devtools.tsx",
     source: "assets/frontend/src/components/query-client-devtools.tsx.template",
     target: "frontend/src/components/query-client-devtools.tsx",
   },
+  {
+    name: "frontend/src/components/theme-provider.tsx",
+    source: "assets/frontend/src/components/theme-provider.tsx.template",
+    target: "frontend/src/components/theme-provider.tsx",
+  }
 ];
 
 const initDB = async (config: ProjectConfig) => {
   await $({
     cwd: config.projectDir,
   })`mkdir -p ${path.join(config.projectDir, "backend", "data")}`;
-  await $({
-    cwd: path.join(config.projectDir, "backend", "data"),
-  })`sqlite3 main.db ${"VACUUM;"}`;
+  if (config.db === "sqlite") {
+    await $({
+      cwd: path.join(config.projectDir, "backend", "data"),
+    })`sqlite3 main.db ${"VACUUM;"}`;
+  } else {
+    await $({
+      cwd: path.join(config.projectDir, "backend", "data"),
+    })`mkdir -p ${path.join(config.projectDir, "backend", "data", "db")}`;
+  }
 };
 
 const migrateDB = async (config: ProjectConfig) => {
   await $({
     cwd: path.join(config.projectDir, "backend"),
   })`uv run alembic revision --autogenerate -m ${"Initial migration"}`;
+  if (config.db === "sqlite") {
+    await $({
+      cwd: path.join(config.projectDir, "backend"),
+    })`uv run alembic upgrade head`;
+  } else {
+    console.log("Skipping database migration, please start docker container first, then run 'uv run alembic upgrade head'");
+  }
+};
+
+const addUIComponents = async (config: ProjectConfig) => {
   await $({
-    cwd: path.join(config.projectDir, "backend"),
-  })`uv run alembic upgrade head`;
+    cwd: path.join(config.projectDir, "frontend"),
+  })`pnpx shadcn add button card collapsible input scroll-area sheet sonner switch`
 };
 
 const postInitBackend = async (config: ProjectConfig) => {
-  await $({ cwd: path.join(config.projectDir, "backend") })`uv run schemas.py`;
+  await $({ cwd: path.join(config.projectDir, "backend") })`uv run scripts/schemas.py`;
 };
 
 const postInitFrontend = async (config: ProjectConfig) => {
@@ -540,8 +612,25 @@ const postInitFrontend = async (config: ProjectConfig) => {
   await $({ cwd: path.join(config.projectDir, "frontend") })`pnpm run check`;
 };
 
-const copyTemplates = async (config: ProjectConfig) => {
-  for (const template of templates) {
+const copyTemplates  = async (config: ProjectConfig) => {
+  const extras = [
+    {
+      name: "docker-compose.yml",
+      source: `assets/${config.db}.docker-compose.yml.template`,
+      target: "docker-compose.yml",
+    },
+    {
+      name: "Dockerfile",
+      source: `assets/${config.db}.Dockerfile.template`,
+      target: "Dockerfile",
+    },
+    {
+      name: ".spec",
+      source: "assets/backend/.spec.template",
+      target: `backend/${config.formattedProjectName}.spec`
+    }
+  ]
+  for (const template of templates.concat(extras)) {
     console.log("Processing template: ", template.name);
     const source = fs
       .readFileSync(path.join(__dirname, template.source))
@@ -570,6 +659,7 @@ const main = async () => {
   await copyTemplates(config);
   await postInitBackend(config);
   await postInitFrontend(config);
+  await addUIComponents(config);
   await migrateDB(config);
   await commit(config);
 };

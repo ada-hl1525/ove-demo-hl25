@@ -1,7 +1,7 @@
-import datetime
-import logging
 import re
 import sys
+import logging
+import datetime
 import urllib.request
 
 from app.core.config import get_settings

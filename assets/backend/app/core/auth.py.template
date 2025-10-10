@@ -1,19 +1,19 @@
-from http.cookies import SimpleCookie
-from typing import Annotated
-from uuid import uuid4
 import functools
+from uuid import uuid4
+from typing import Annotated
+from http.cookies import SimpleCookie
 
+from pydantic import BaseModel
+from starlette.responses import RedirectResponse
 from fastapi import Depends, HTTPException, status, Query
 from fastapi.security import APIKeyCookie, APIKeyQuery, HTTPAuthorizationCredentials, HTTPBearer, HTTPBasic, \
     HTTPBasicCredentials
-from pydantic import BaseModel
-from starlette.responses import RedirectResponse
 
 from app.app import app
-from app.core.config import get_settings
-from app.core.logger import logger
-from app.core.state import state
 from app.db.models import APIKey
+from app.core.state import state
+from app.core.logger import logger
+from app.core.config import get_settings
 from app.db.session import get_db, AsyncSession
 
 settings = get_settings()
@@ -95,7 +95,7 @@ def socket_auth(func):
 
 
 @app.get("/auth/validate", response_model=bool)
-def validate_token(cookie: str = Depends(cookie_scheme)):
+def validate_token(_cookie: str = Depends(cookie_scheme)):
     return True
 
 
@@ -149,6 +149,6 @@ def configure_auth():
         app.dependency_overrides[cookie_scheme] = override_cookie_scheme
         app.dependency_overrides[otp_scheme] = override_otp_scheme
         app.dependency_overrides[api_key_scheme] = override_api_key_scheme
-        print("Auth disabled")
+        logger.info("Auth disabled")
     else:
         logger.info("Auth configured")

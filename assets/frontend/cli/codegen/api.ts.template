@@ -8,6 +8,7 @@
  *    - frontend/src/api/client-{namespace}.ts
  */
 import fs from "node:fs";
+import path from "node:path";
 import type {
   OpenAPIObject,
   OperationObject,
@@ -16,8 +17,17 @@ import type {
   RequestBodyObject,
   SchemaObject,
 } from "openapi3-ts/oas31";
-import path from "node:path";
-import { OUT_DIR, SCHEMA_DIR, toCamel, toPascal, writeToFile } from "../utils.ts";
+import {
+  OUT_DIR,
+  SCHEMA_DIR,
+  postProcess,
+  type Processor,
+  toCamel,
+  toPascal,
+  writeToFile,
+} from "../utils.ts";
+
+const processors: Processor[] = [];
 
 type Operation = {
   tag: string;
@@ -28,10 +38,7 @@ type Operation = {
 
 type HttpVerb = "get" | "post" | "put" | "patch" | "delete";
 
-const OPENAPI_PATH = path.join(
-  SCHEMA_DIR,
-  "openapi.json"
-);
+const OPENAPI_PATH = path.join(SCHEMA_DIR, "openapi.json");
 
 // Helpers
 const isRef = (x: unknown): x is ReferenceObject =>
@@ -46,6 +53,12 @@ const refType = (r: ReferenceObject) => {
 
 const generateZod = (schema: SchemaObject): string => {
   // Very minimal: handles object, array, primitives
+  if ("anyOf" in schema) {
+    const entries = schema.anyOf!.map((s) =>
+      isRef(s) ? refType(s) : generateZod(s)
+    );
+    return `z.union([${entries.join(", ")}])`;
+  }
   if (schema.type === "object" || schema.properties) {
     const req = schema.required || [];
     const props = schema.properties || {};
@@ -73,6 +86,8 @@ const generateZod = (schema: SchemaObject): string => {
       return "z.boolean()";
     case undefined:
       return "z.void()";
+    case "null":
+      return "z.null()";
     default:
       return "z.any()";
   }
@@ -119,7 +134,7 @@ const loadDocument = (): OpenAPIObject =>
 
 const getSchemas = () =>
   fs
-    .readdirSync(SCHEMA_DIR)
+    .readdirSync(path.join(SCHEMA_DIR, "entities"))
     .filter((f) => f.endsWith(".schema.json"))
     .map((f) => toPascal(path.basename(f, ".schema.json")));
 
@@ -267,6 +282,7 @@ const getHookKey = (name: string) => {
 const buildQuery = <T>(
   name: string,
   nameWithVersion: string,
+  parameters: string[],
   path: string,
   _method: string,
   paramSchema: string | null,
@@ -277,23 +293,33 @@ const buildQuery = <T>(
   const hookKey = getHookKey(name);
   const params = [
     paramSchema ? "params: " + nameWithVersion + "Params" : "",
-    `options?: UseQueryOptions<${responseType}>`,
+    `options?: Partial<UseQueryOptions<${responseType}>>`,
   ].filter(Boolean);
   const queryKey = `["${hookKey}",${paramSchema ? "params" : ""}]`;
-  const url = path.replace(/\{([^}]+)}/g, (_, k) => `\${params.${k}}`);
+  const seen: string[] = [];
+  const url = path.replace(/\{([^}]+)}/g, (_, k) => {
+    seen.push(k.toString());
+    return `\${(queryKey[1] as ${nameWithVersion}Params).${k}}`;
+  });
+  const queryParams = parameters
+    .filter((param) => !seen.includes(param))
+    .map((k) => `${k}=\${(queryKey[1] as ${nameWithVersion}Params).${k}}`)
+    .join("&");
+  const queryKeyArgs = parameters.length > 0 ? `, queryKey` : "";
 
   return `
     ${hookKey}: (${params.join(", ")}) => useQuery<${responseType}>({
       ...(options ?? {}),
       queryKey: ${queryKey},
-      queryFn: () =>
-        caller.get<${responseType}>(\`${url}\`)
+      queryFn: ({ signal${queryKeyArgs} }) =>
+        caller.get<${responseType}>(\`${url}${queryParams.length > 0 ? "?" + queryParams : ""}\`, { signal })
           .then(({ data }) => ${parseFn}(data))}),`;
 };
 
 const buildMutation = <T>(
   name: string,
   nameWithVersion: string,
+  _parameters: string[],
   path: string,
   method: string,
   paramSchema: string | null,
@@ -309,7 +335,7 @@ const buildMutation = <T>(
   const params = [
     paramSchema ? "params: " + nameWithVersion + "Params" : "",
     bodyType !== "void" ? `body: ${bodyType}` : "",
-    `options?: UseMutationOptions<${types}>`,
+    `options?: Partial<UseMutationOptions<${types}>>`,
   ]
     .filter(Boolean)
     .join(", ");
@@ -368,6 +394,9 @@ const main = async () => {
       const query = (method === "get" ? buildQuery : buildMutation)(
         name,
         nameWithVersion,
+        (operation.parameters ?? [])
+          .filter((param) => !isRef(param))
+          .map((param) => (param as ParameterObject).name),
         p,
         method,
         paramSchema,
@@ -379,13 +408,17 @@ const main = async () => {
     }
   }
 
-  await writeToFile([
-    getBase(),
-    ...declarations,
-    "export const api = {",
-    ...buildQueries(queries),
-    `\n};\n`,
-  ], path.join(OUT_DIR, "api.ts"));
+  await writeToFile(
+    [
+      getBase(),
+      ...declarations,
+      "export const api = {",
+      ...buildQueries(queries),
+      `\n};\n`,
+    ],
+    path.join(OUT_DIR, "api.ts"),
+    (data) => postProcess(data, processors),
+  );
   console.log(`✨  Generated api.ts in ${OUT_DIR}`);
 };
 
