@@ -88,7 +88,7 @@ const initBackend = async (config: ProjectConfig) => {
   })`uv init --name ${config.formattedProjectName} --description ${`OVE demo for the ${config.projectName} project.`}`;
   await $({
     cwd: path.join(config.projectDir, "backend"),
-  })`uv add ${config.dbPythonLib} alembic ${"fastapi-cache2[redis]"} ${"fastapi[standard]"} greenlet numpy pandas prometheus-fastapi-instrumentator pydantic-settings pyinstaller python-socketio redis slowapi sqlalchemy`;
+  })`uv add ${config.dbPythonLib} ${"alembic==1.17.2"} ${"fastapi-cache2[redis]==0.2.2"} ${"fastapi[standard]==0.122.0"} ${"greenlet==3.2.4"} ${"numpy==2.3.5"} ${"pandas==2.3.3"} ${"prometheus-fastapi-instrumentator==7.1.0"} ${"pydantic-settings==2.12.0"} ${"pyinstaller==6.17.0"} ${"python-socketio==5.15.0"} ${"redis==4.6.0"} ${"slowapi==0.1.9"} ${"sqlalchemy==2.0.44"}`;
 };
 
 const initFrontend = async (config: ProjectConfig) => {
@@ -140,10 +140,10 @@ const initFrontend = async (config: ProjectConfig) => {
   })`pnpm pkg set ${`scripts.test=vitest run`}`;
   await $({
     cwd: path.join(config.projectDir, "frontend"),
-  })`pnpm add -D @asyncapi/parser @eslint/js @tailwindcss/vite @testing-library/dom @testing-library/react @types/node @types/react @types/react-dom @vitejs/plugin-react-swc eslint eslint-config-prettier eslint-plugin-prettier eslint-plugin-react-hooks eslint-plugin-react-refresh globals jsdom json-schema-to-zod openapi3-ts prettier prettier-plugin-organize-imports prettier-plugin-tailwindcss tsx typescript typescript-eslint vite vitest`;
+  })`pnpm add -D @asyncapi/parser@3.4.0 @eslint/js@9.39.1 @tailwindcss/vite@4.1.17 @testing-library/dom@10.4.1 @testing-library/react@16.3.0 @types/node@24.10.1 @types/react@19.2.7 @types/react-dom@19.2.3 @vitejs/plugin-react-swc@4.2.2 eslint@9.39.1 eslint-config-prettier@10.1.8 eslint-plugin-prettier@5.5.4 eslint-plugin-react-hooks@7.0.1 eslint-plugin-react-refresh@0.4.24 globals@16.5.0 jsdom@27.2.0 json-schema-to-zod@2.7.0 openapi3-ts@4.5.0 prettier@3.6.2 prettier-plugin-organize-imports@4.3.0 prettier-plugin-tailwindcss@0.7.1 tsx@4.20.6 typescript@5.9.3 typescript-eslint@8.48.0 vite@7.2.4 vitest@4.0.14 shadcn@3.5.0`;
   await $({
     cwd: path.join(config.projectDir, "frontend"),
-  })`pnpm add @t3-oss/env-core @tanstack/react-query @tanstack/react-query-devtools @tanstack/react-router @tanstack/react-router-devtools axios chalk class-variance-authority clsx date-fns lucide-react react react-dom socket.io-client tailwind-merge tailwindcss tw-animate-css web-vitals zod zustand`;
+  })`pnpm add @t3-oss/env-core@0.13.8 @tanstack/react-query@5.90.11 @tanstack/react-query-devtools@5.91.1 @tanstack/react-router@1.139.7 @tanstack/react-router-devtools@1.139.7 axios@1.13.2 chalk@5.6.2 class-variance-authority@0.7.1 clsx@2.1.1 date-fns@4.1.0 lucide-react@0.554.0 react@19.2.0 react-dom@19.2.0 socket.io-client@4.8.1 tailwind-merge@3.4.0 tailwindcss@4.1.17 tw-animate-css@1.4.0 web-vitals@5.1.0 zod@4.1.13 zustand@5.0.8`;
 };
 
 const templates = [
@@ -383,6 +383,11 @@ const templates = [
     target: "backend/.env",
   },
   {
+    name: "frontend/.npmrc",
+    source: "assets/frontend/.npmrc.template",
+    target: "frontend/.npmrc",
+  },
+  {
     name: "frontend/vite.config.ts",
     source: "assets/frontend/vite.config.ts.template",
     target: "frontend/vite.config.ts",
@@ -600,7 +605,7 @@ const migrateDB = async (config: ProjectConfig) => {
 const addUIComponents = async (config: ProjectConfig) => {
   await $({
     cwd: path.join(config.projectDir, "frontend"),
-  })`pnpx shadcn add button card collapsible input scroll-area sheet sonner switch`
+  })`pnpm shadcn add button card collapsible input scroll-area sheet sonner switch`
 };
 
 const postInitBackend = async (config: ProjectConfig) => {
