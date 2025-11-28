@@ -5,7 +5,7 @@
     "email": "bc2918@ic.ac.uk",
     "url": "https://github.com/bcd00"
   },
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "",
   "main": "index.js",
   "type": "module",
@@ -41,7 +41,7 @@
   },
   "keywords": [],
   "license": "ISC",
-  "packageManager": "pnpm@10.11.0",
+  "packageManager": "pnpm@10.24.0",
   "dependencies": {
     "enquirer": "2.4.1",
     "execa": "9.6.0",
