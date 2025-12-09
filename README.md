@@ -43,6 +43,7 @@ caching, rate-limiting, authentication, WebSocket support, metrics, code generat
 1. Clone the project:
    ```bash
    git clone https://github.com/dsi-icl/create-ove-demo.git
+   cd create-ove-demo
    ```
 
 2. Install dependencies, build and link:
