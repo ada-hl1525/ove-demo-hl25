@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>ove-demo-hl25 AsyncAPI Reference</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
+  <link rel="apple-touch-icon" type="image/svg+xml" href="/favicon.svg"/>
+  <meta charset="utf-8"/>
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"/>
+  <link rel="stylesheet" href="https://unpkg.com/@asyncapi/react-component@latest/styles/default.min.css">
+</head>
+<body>
+<div id="asyncapi"></div>
+<script src="https://unpkg.com/@asyncapi/react-component@latest/browser/standalone/index.js"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const params = new URLSearchParams(window.location.search);
+    AsyncApiStandalone.render({
+      schema: {
+        url: `/asyncapi/${params.get("schema")}.json`,
+        options: {method: "GET", mode: "cors"},
+      },
+      config: {
+        show: {
+          sidebar: true,
+        }
+      },
+    }, document.getElementById('asyncapi'));
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "properties": {
+    "room": {
+      "title": "Room",
+      "type": "string"
+    }
+  },
+  "required": [
+    "room"
+  ],
+  "title": "SocketJoinPayload",
+  "type": "object"
+}

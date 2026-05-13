@@ -1,0 +1,56 @@
+#!/usr/bin/env node
+/**
+ * cli/codegen/schemas.ts
+ *
+ * 1) Reads your dumped JSON‐Schemas in backend/schemas/*.schema.json
+ * 2) Uses json-schema-to-zod to build runtime Zod schemas
+ * 3) Emits:
+ *    - frontend/src/api/schemas.ts
+ */
+import converter from "json-schema-to-zod";
+import fs from "node:fs";
+import path from "node:path";
+import {
+  OUT_DIR,
+  SCHEMA_DIR,
+  postProcess,
+  type Processor,
+  toPascal,
+  writeToFile
+} from "../utils.ts";
+
+const processors: Processor[] = [];
+
+const loadSchemas = () =>
+  fs
+    .readdirSync(path.join(SCHEMA_DIR, "entities"))
+    .filter((f) => f.endsWith(".schema.json"));
+
+const getBase = () =>
+  `/* AUTO-GENERATED - do not edit */\n
+  import { z } from "zod";\n\n`;
+
+const main = async () => {
+  const jsonSchemas = loadSchemas();
+  const zodSchemas = [getBase()];
+
+  for (const file of jsonSchemas) {
+    const full = path.join(SCHEMA_DIR, "entities", file);
+    const name = path.basename(file, ".schema.json");
+    const pascal = toPascal(name);
+    const jsonSchema = JSON.parse(fs.readFileSync(full, "utf8"));
+    const zodCode = converter(jsonSchema, {
+      name: pascal,
+    }).replaceAll("z.record(z.any())", "z.record(z.string(), z.unknown())");
+    zodSchemas.push("export " + zodCode);
+    zodSchemas.push(`export type ${pascal} = z.infer<typeof ${pascal}>;`);
+  }
+
+  await writeToFile(zodSchemas, path.join(OUT_DIR, "schemas.ts"), (data) => postProcess(data, processors));
+  console.log(`✨  Generated schemas.ts in`, OUT_DIR);
+};
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

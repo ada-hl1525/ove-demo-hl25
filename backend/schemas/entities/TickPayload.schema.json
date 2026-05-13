@@ -1,0 +1,13 @@
+{
+  "properties": {
+    "timestamp": {
+      "title": "Timestamp",
+      "type": "string"
+    }
+  },
+  "required": [
+    "timestamp"
+  ],
+  "title": "TickPayload",
+  "type": "object"
+}

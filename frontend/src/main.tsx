@@ -1,0 +1,93 @@
+import { ThemeProvider } from "@/components/theme-provider.tsx";
+import reportWebVitals from "@/reportWebVitals.ts";
+import IndexRoute from "@/routes/index/index.tsx";
+import { QueryClientProvider } from "@tanstack/react-query";
+import {
+  createRootRoute,
+  createRouter,
+  Outlet,
+  RouterProvider,
+} from "@tanstack/react-router";
+import { StrictMode } from "react";
+import ReactDOM from "react-dom/client";
+
+import DashboardRoute from "@/routes/dashboard/index.tsx";
+
+
+import TanStackQueryLayout from "@/components/query-client-devtools.tsx";
+import { env } from "@/env.ts";
+import { logger } from "@/lib/logger.ts";
+import { getContext, queryClient } from "@/lib/query-client.ts";
+import { useStore } from "@/lib/store.ts";
+import "@/styles.css";
+import { TanStackRouterDevtoolsInProd } from "@tanstack/react-router-devtools";
+import { z } from "zod";
+import { ErrorBoundary } from "@/components/error.tsx";
+import { Toaster } from "@/components/ui/sonner.tsx";
+import Debug from "@/components/debug.tsx";
+import { DEBUGGING_ENABLED } from "@/lib/debug.ts";
+
+const rootRoute = createRootRoute({
+  beforeLoad: async () => {
+    await fetch(`${env.VITE_BACKEND}/auth/validate`);
+  },
+  loader: () => useStore.getState().loadState(),
+  validateSearch: z.strictObject({
+    displayMode: z
+      .union([z.literal("controller"), z.literal("view")])
+      .optional(),
+    observatory: z.string().optional(),
+    row: z.number().optional(),
+    column: z.number().optional(),
+  }),
+  component: () => (
+    <>
+      <Outlet />
+      {DEBUGGING_ENABLED ? <Debug /> : null}
+      <Toaster />
+      {DEBUGGING_ENABLED ? <TanStackRouterDevtoolsInProd/> : null}
+
+      {DEBUGGING_ENABLED ? <TanStackQueryLayout/> : null}
+    </>
+  ),
+});
+
+const routeTree = rootRoute.addChildren([
+  IndexRoute(rootRoute),
+  DashboardRoute(rootRoute)
+]);
+
+const router = createRouter({
+  routeTree,
+  context: {
+    ...getContext(),
+  },
+  defaultPreload: "intent",
+  scrollRestoration: true,
+  defaultStructuralSharing: true,
+  defaultPreloadStaleTime: 0,
+  defaultErrorComponent: ({ error }) => <ErrorBoundary error={error.message} />,
+  basepath: import.meta.env.BASE_URL,
+});
+
+declare module "@tanstack/react-router" {
+  interface Register {
+    router: typeof router;
+  }
+}
+
+const rootElement = document.getElementById("app");
+if (rootElement && !rootElement.innerHTML) {
+  const root = ReactDOM.createRoot(rootElement);
+  root.render(
+    <StrictMode>
+      <ThemeProvider>
+        <QueryClientProvider client={queryClient}>
+          <RouterProvider router={router} />
+        </QueryClientProvider>
+      </ThemeProvider>
+    </StrictMode>
+  );
+}
+
+reportWebVitals(logger.trace);

@@ -1,0 +1,175 @@
+{
+  "asyncapi": "3.0.0",
+  "info": {
+    "title": "ove-demo-hl25 Observatory Demo",
+    "version": "0.1.0"
+  },
+  "servers": {
+    "prod": {
+      "host": "localhost:8000",
+      "protocol": "ws"
+    }
+  },
+  "channels": {
+    "get_state": {
+      "address": "get_state",
+      "messages": {
+        "receive": {},
+        "send": {
+          "contentType": "application/json",
+          "payload": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "reset": {
+      "address": "reset",
+      "messages": {
+        "receive": {},
+        "send": {}
+      }
+    },
+    "start": {
+      "address": "start",
+      "messages": {
+        "receive": {},
+        "send": {}
+      }
+    },
+    "stop": {
+      "address": "stop",
+      "messages": {
+        "receive": {},
+        "send": {}
+      }
+    },
+    "tick": {
+      "address": "tick",
+      "messages": {
+        "send": {
+          "contentType": "application/json",
+          "payload": {
+            "properties": {
+              "timestamp": {
+                "title": "Timestamp",
+                "type": "string"
+              }
+            },
+            "required": [
+              "timestamp"
+            ],
+            "title": "TickPayload",
+            "type": "object"
+          }
+        }
+      }
+    }
+  },
+  "operations": {
+    "get_state.receive": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/get_state"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/get_state/messages/receive"
+        }
+      ]
+    },
+    "get_state.send": {
+      "action": "send",
+      "channel": {
+        "$ref": "#/channels/get_state"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/get_state/messages/send"
+        }
+      ],
+      "bindings": {
+        "x-socketio": {
+          "ack": true
+        }
+      }
+    },
+    "reset.receive": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/reset"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/reset/messages/receive"
+        }
+      ]
+    },
+    "reset.send": {
+      "action": "send",
+      "channel": {
+        "$ref": "#/channels/reset"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/reset/messages/send"
+        }
+      ]
+    },
+    "start.receive": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/start"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/start/messages/receive"
+        }
+      ]
+    },
+    "start.send": {
+      "action": "send",
+      "channel": {
+        "$ref": "#/channels/start"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/start/messages/send"
+        }
+      ]
+    },
+    "stop.receive": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/stop"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/stop/messages/receive"
+        }
+      ]
+    },
+    "stop.send": {
+      "action": "send",
+      "channel": {
+        "$ref": "#/channels/stop"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/stop/messages/send"
+        }
+      ]
+    },
+    "tick.send": {
+      "action": "send",
+      "channel": {
+        "$ref": "#/channels/tick"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/tick/messages/send"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,62 @@
+from functools import lru_cache
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    app_name: str = "ove-demo-hl25"
+
+    cache_host: str = None
+    cache_port: int = 6379
+    cache_certfile: str | None = None
+    cache_keyfile: str | None = None
+    cache_prefix: str = "ove-demo-hl25"
+    cache_expiration: int | None = None
+    cache_enabled: bool = True
+    cache_password: str | None = None
+    secure_cache: bool = False
+
+    downgrade_ssl: bool = False
+    ca_bundle_path: str | None = None
+
+    frontend_origin: str = "http://localhost:5173"
+    websocket_origin: str = "ws://localhost:5173"
+
+    database_url: str = None
+    config_dir: str = "config"
+    public_dir: str = "public"
+    models_dir: str = "models"
+    data_dir: str = "data"
+    base_path: str = ""
+    templates_dir: str = "templates"
+    asyncapi_dir: str = "schemas/asyncapi"
+
+    disable_auth: bool = False
+    use_legacy_auth: bool = False
+    legacy_auth_key: str | None = None
+    protect_metrics: bool = True
+    metrics_username: str = None
+    metrics_password: str = None
+    token_expiry: int = 3600
+
+    port: int = 8000
+
+    log_level: int = -1
+    logging_server: str | None = None
+
+    interval: int = 30
+
+    vite_backend: str = None
+    vite_socket_server: str = None
+    vite_socket_path: str = None
+    vite_enable_debug: bool = False
+
+    model_config = SettingsConfigDict(env_file=".env")
+
+
+settings = Settings()
+
+
+@lru_cache
+def get_settings():
+    return settings

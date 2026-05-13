@@ -1,0 +1,271 @@
+#!/usr/bin/env node
+/**
+ * cli/codegen/api.ts
+ *
+ * 1) Parses backend/schemas/openapi.json
+ * 2) Emits:
+ *    - frontend/src/api/api.ts
+ */
+import {
+  type ChannelInterface,
+  type OperationInterface,
+  Parser,
+} from "@asyncapi/parser";
+import fs from "fs";
+import path from "path";
+import {
+  OUT_DIR,
+  SCHEMA_DIR,
+  postProcess,
+  type Processor,
+  toCamel,
+  toPascal,
+  writeToFile,
+} from "../utils.ts";
+
+const processors: Processor[] = [];
+
+const getMessageTypeForPayload = (payload: Record<string, string>) => {
+  if (payload?.type === "object") {
+    if (payload?.title !== undefined) {
+      return {
+        schema: `schemas.${toPascal(payload.title)}`,
+        type: `schemas.${toPascal(payload.title)}`,
+      };
+    } else {
+      return {
+        schema: "z.record(z.string(), z.unknown())",
+        type: "Record<string, unknown>",
+      };
+    }
+  } else if (payload?.type === "null") {
+    return { schema: "z.null()", type: "null" };
+  } else if (payload?.type === "string") {
+    return { schema: "z.string()", type: "string" };
+  } else if (payload?.type === "integer" || payload?.type === "number") {
+    return { schema: "z.number()", type: "number" };
+  } else if (payload?.type === "boolean") {
+    return { schema: "z.boolean()", type: "boolean" };
+  } else if (payload === undefined) {
+    return undefined;
+  } else {
+    return { schema: "z.unknown()", type: "unknown" };
+  }
+};
+
+const getMessageTypeForOperation = (operation: OperationInterface) => {
+  const payload = operation.messages()?.pop()?.json()?.payload;
+  if (
+    payload !== undefined &&
+    "oneOf" in payload &&
+    Array.isArray(payload.oneOf)
+  ) {
+    const res: { schema: string; type: string }[] = payload.oneOf
+      .map((option: Record<string, string>) => getMessageTypeForPayload(option))
+      .filter((r: { schema: string; type: string }) => r !== undefined);
+    return {
+      schema: `z.union([${res.map((r) => r.schema).join(", ")}])`,
+      type: res.map((r) => r.type).join(" | "),
+    };
+  }
+  return getMessageTypeForPayload(payload);
+};
+
+const getBase = (namespace: string) =>
+  `/* AUTO-GENERATED - do not edit */
+  import { io, Socket } from "socket.io-client";
+  import { z } from "zod";
+  import * as schemas from "./schemas";
+
+  export class SocketClient${toPascal(namespace)} {
+    private socket: Socket;
+
+    constructor(url: string, options: Parameters<typeof io>[1] = {}) {
+      this.socket = io(url, options);
+    }
+
+    public connect(): void {
+      this.socket.connect();
+    }
+
+    public disconnect(): void {
+      this.socket.disconnect();
+    }
+
+    public isConnected(): boolean {
+      return this.socket.connected;
+    }
+
+    public onConnect(handler: () => void): void {
+      this.socket.on("connect", handler);
+    }
+
+    public onDisconnect(handler: () => void): void {
+      this.socket.on("disconnect", handler);
+    }
+
+    public onAny(handler: (event: string, ...args: unknown[]) => void): void {
+      this.socket.onAny(handler);
+    }
+
+    public onError(handler: (err: Error) => void): void {
+      this.socket.on("connect_error", handler);
+    }
+    `;
+
+const buildAck = (
+  event: string,
+  param: string,
+  responseType: string,
+  emitParam: string,
+  resolver: string
+) =>
+  `  /**
+    * emits '${event}' and waits for server ack payload
+    */
+      public ${toCamel(event)}(${param}): Promise<${responseType}> {
+        return new Promise((resolve, reject) => {
+          this.socket.emit("${event}"${emitParam}, (res: unknown) => {
+            try {
+              ${resolver}
+            } catch(e) { reject(e); }
+          });
+        });
+      }
+  `;
+
+const buildEmit = (
+  event: string,
+  param: string,
+  emitParam: string
+) => `  /** client → server '${event}' */
+    public emit${toPascal(event)}(${param}): void {
+      this.socket.emit("${event}"${emitParam});
+    }
+  `;
+
+const buildListener = (
+  event: string,
+  param: string,
+  response: string
+) => `  /** server → client '${event}' */
+    public on${toPascal(event)}(
+      handler: (${param}) => void
+    ): void {
+      this.socket.on("${event}", (${response !== "" ? "raw: unknown" : ""}) => {
+        try {
+          handler(${response});
+        } catch(e) {
+          console.error("Invalid payload for ${event}", e);
+        }
+      });
+    }
+  `;
+
+const generateGetter = (
+  namespace: string
+) => `export function createSocketClient(url: string, options: Parameters<typeof io>[1] = {}) {
+    return new SocketClient${toPascal(namespace)}(url, options);
+  }
+`;
+
+const getEvent = (channel: ChannelInterface) =>
+  channel
+    .address()
+    ?.slice(channel.address()!.indexOf("/") + 1)
+    .replaceAll("/", "_") ?? "";
+
+const hasReceive = (channel: ChannelInterface) =>
+  channel.operations().filterByReceive().length > 0;
+
+const hasSend = (channel: ChannelInterface) =>
+  channel.operations().filterBySend().length > 0;
+
+const getReceive = (channel: ChannelInterface) =>
+  channel.operations().filterByReceive().at(0);
+
+const getSend = (channel: ChannelInterface) =>
+  channel.operations().filterBySend().at(0);
+
+const isAck = (operation: OperationInterface | undefined): boolean =>
+  operation?.bindings()?.extensions()?.get("x-socketio")?.json()?.ack ?? false;
+
+const generateClient = async (
+  filename: string,
+  namespace: string | undefined
+) => {
+  const asyncapi = JSON.parse(fs.readFileSync(filename, "utf8"));
+  const parser = new Parser();
+  const doc = await parser.parse(JSON.stringify(asyncapi));
+  const channels = doc.document!.channels();
+
+  const client = [getBase(namespace ?? "")];
+
+  for (const channel of channels.values()) {
+    const event = getEvent(channel);
+
+    if (hasReceive(channel)) {
+      const payloadType = getMessageTypeForOperation(getReceive(channel)!);
+      const param =
+        payloadType !== undefined ? `payload: ${payloadType.type}` : "";
+      const emitParam = param !== "" ? `, payload` : "";
+
+      if (isAck(getSend(channel))) {
+        const responseType = getMessageTypeForOperation(getSend(channel)!);
+        const resolver =
+          responseType !== undefined
+            ? `const parsed = ${responseType.schema}.parse(res);\n` +
+              `          resolve(parsed);\n`
+            : "resolve()";
+
+        client.push(
+          buildAck(event, param, responseType!.type, emitParam, resolver)
+        );
+      } else {
+        client.push(buildEmit(event, param, emitParam));
+      }
+    }
+
+    // PUBLISH = server → client
+    if (hasSend(channel)) {
+      const pub = getSend(channel)!;
+      const msgType = getMessageTypeForOperation(pub);
+      const param = msgType !== undefined ? `payload: ${msgType.type}` : "";
+      const response = param !== "" ? `${msgType!.schema}.parse(raw)` : "";
+
+      client.push(buildListener(event, param, response));
+    }
+  }
+
+  client.push("}\n\n");
+  client.push(generateGetter(namespace ?? ""));
+
+  await writeToFile(
+    client,
+    path.join(
+      OUT_DIR,
+      `sockets${namespace !== undefined ? `-${namespace}` : ""}.ts`
+    ),
+    (data) => postProcess(data, processors),
+  );
+  console.log(
+    `✨  Generated sockets${namespace !== undefined ? `-${namespace}` : ""}.ts in`,
+    OUT_DIR
+  );
+};
+
+async function main() {
+  const apis = fs
+    .readdirSync(path.join(SCHEMA_DIR, "asyncapi"))
+    .filter((f) => f.endsWith(".json"));
+
+  apis.forEach((api) => {
+    const namespace = api.split(".").at(0);
+    generateClient(path.join(SCHEMA_DIR, "asyncapi", api), namespace);
+  });
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
